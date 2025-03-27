@@ -2,8 +2,7 @@ package guis;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.event.*;
 
 public class PersonalAccount extends JFrame {
     private JPanel sidePanel;
@@ -23,30 +22,17 @@ public class PersonalAccount extends JFrame {
         sidePanel.setBackground(Color.DARK_GRAY);
 
         // Добавляем кнопки
-        addMenuItem("Профиль", "user_icon.png");
-        addMenuItem("Новости футбола", "news_icon.png");
-        addMenuItem("Мой клуб", "club_icon.png");
-        addMenuItem("Следим за игроками", "players_icon.png");
-        addMenuItem("Цены и трансферы", "transfers_icon.png");
-        addMenuItem("Календарь матчей", "calendar_icon.png");
+        addMenuItem("Профиль", "/Users/inkonio/Desktop/Utilities/footbik/icons/user.png");
+        addMenuItem("Новости футбола", "/Users/inkonio/Desktop/Utilities/footbik/icons/newspaper-open.png");
+        addMenuItem("Мой клуб", "/Users/inkonio/Desktop/Utilities/footbik/icons/football-player.png");
+        addMenuItem("Следим за игроками", "/Users/inkonio/Desktop/Utilities/footbik/icons/football.png");
+        addMenuItem("Цены и трансферы", "/Users/inkonio/Desktop/Utilities/footbik/icons/usd-circle.png");
+        addMenuItem("Календарь матчей", "/Users/inkonio/Desktop/Utilities/footbik/icons/calendar.png");
 
         add(sidePanel, BorderLayout.WEST);
-        setVisible(true);
-    }
 
-    private void addMenuItem(String title, String iconPath) {
-        ImageIcon icon = new ImageIcon(iconPath);
-        JButton button = new JButton(title, icon);
-        button.setHorizontalAlignment(SwingConstants.LEFT);
-        button.setAlignmentX(Component.CENTER_ALIGNMENT);
-        button.setMaximumSize(new Dimension(200, 50));
-        button.setBorderPainted(false);
-        button.setBackground(Color.DARK_GRAY);
-        button.setForeground(Color.WHITE);
-        button.setFocusPainted(false);
-        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        button.addMouseListener(new MouseAdapter() {
+        // Наведение на панель расширяет её
+        sidePanel.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
                 expandPanel();
@@ -58,6 +44,39 @@ public class PersonalAccount extends JFrame {
             }
         });
 
+        setVisible(true);
+    }
+
+    private void addMenuItem(String title, String iconPath) {
+        ImageIcon icon = new ImageIcon(iconPath);
+        JLabel label = new JLabel(title);
+        label.setForeground(Color.WHITE);
+        label.setVisible(false); // Изначально скрываем
+
+        JButton button = new JButton(icon);
+        button.setPreferredSize(new Dimension(60, 50));
+        button.setBorderPainted(false);
+        button.setBackground(Color.DARK_GRAY);
+        button.setForeground(Color.WHITE);
+        button.setFocusPainted(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        button.setLayout(new BorderLayout());
+
+        button.add(label, BorderLayout.CENTER);
+
+        button.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                expandPanel();
+                label.setForeground(Color.YELLOW); // Подсветка при наведении
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                label.setForeground(Color.WHITE); // Возвращаем стандартный цвет
+            }
+        });
+
         button.addActionListener(e -> showContent(title));
         sidePanel.add(button);
     }
@@ -65,6 +84,18 @@ public class PersonalAccount extends JFrame {
     private void expandPanel() {
         if (!expanded) {
             sidePanel.setPreferredSize(new Dimension(200, getHeight()));
+
+            // Показываем текст на всех кнопках
+            for (Component comp : sidePanel.getComponents()) {
+                if (comp instanceof JButton) {
+                    for (Component child : ((JButton) comp).getComponents()) {
+                        if (child instanceof JLabel) {
+                            child.setVisible(true);
+                        }
+                    }
+                }
+            }
+
             sidePanel.revalidate();
             expanded = true;
         }
@@ -73,6 +104,18 @@ public class PersonalAccount extends JFrame {
     private void collapsePanel() {
         if (expanded) {
             sidePanel.setPreferredSize(new Dimension(60, getHeight()));
+
+            // Скрываем текст на всех кнопках
+            for (Component comp : sidePanel.getComponents()) {
+                if (comp instanceof JButton) {
+                    for (Component child : ((JButton) comp).getComponents()) {
+                        if (child instanceof JLabel) {
+                            child.setVisible(false);
+                        }
+                    }
+                }
+            }
+
             sidePanel.revalidate();
             expanded = false;
         }

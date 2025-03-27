@@ -1,23 +1,35 @@
 package db;
 
-import constants.CommonConstants;
-
 import java.sql.*;
 
 public class MyJDBC {
+    private static final String DB_URL = "jdbc:sqlite:database.db";
+
+    // Создание таблицы, если она не существует
+    private static void createTableIfNotExists() {
+        String createTableSQL = "CREATE TABLE IF NOT EXISTS users (" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "username TEXT NOT NULL UNIQUE, " +
+                "password TEXT NOT NULL" +
+                ");";
+        try (Connection connection = DriverManager.getConnection(DB_URL);
+             Statement statement = connection.createStatement()) {
+            statement.execute(createTableSQL);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
     public static boolean register(String username, String password) {
-        try {
+        createTableIfNotExists(); // Убедимся, что таблица есть
+
+        try (Connection connection = DriverManager.getConnection(DB_URL);
+             PreparedStatement insertUser = connection.prepareStatement(
+                     "INSERT INTO users (username, password) VALUES(?, ?)")) {
+
             if (!checkUser(username)) {
-                Connection connection = DriverManager.getConnection(CommonConstants.DB_URL,
-                        CommonConstants.DB_USERNAME, CommonConstants.DB_PASSWORD);
-
-                PreparedStatement insertUser = connection.prepareStatement(
-                        "INSERT INTO " + CommonConstants.DB_USERS_TABLE_NAME + "(username, password) VALUES(?, ?)"
-                );
-
                 insertUser.setString(1, username);
                 insertUser.setString(2, password);
-
                 insertUser.executeUpdate();
                 return true;
             }
@@ -27,46 +39,52 @@ public class MyJDBC {
         return false;
     }
 
+    public static boolean testConnection() {
+        try (Connection conn = DriverManager.getConnection(DB_URL)) {
+            if (conn != null) {
+                System.out.println("Успешное подключение к базе данных!");
+                createTableIfNotExists(); // Проверяем таблицу при запуске
+                return true;
+            }
+        } catch (SQLException e) {
+            System.out.println("Ошибка подключения к БД: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return false;
+    }
+
     public static boolean checkUser(String username) {
-        try {
-            Connection connection = DriverManager.getConnection(CommonConstants.DB_URL,
-                    CommonConstants.DB_USERNAME, CommonConstants.DB_PASSWORD);
+        createTableIfNotExists(); // Проверяем таблицу перед выполнением запроса
 
-            PreparedStatement checkUserExists = connection.prepareStatement(
-                    "SELECT * FROM " + CommonConstants.DB_USERS_TABLE_NAME + " WHERE USERNAME = ?"
-            );
+        String sql = "SELECT * FROM users WHERE username = ?";
+        try (Connection connection = DriverManager.getConnection(DB_URL);
+             PreparedStatement checkUserExists = connection.prepareStatement(sql)) {
+
             checkUserExists.setString(1, username);
-
             ResultSet resultSet = checkUserExists.executeQuery();
 
-            if (!resultSet.isBeforeFirst()) {
-                return false;
-            }
+            return resultSet.next(); // Если есть запись, значит, пользователь существует
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return true;
+        return false;
     }
 
     public static boolean validateLogin(String username, String password) {
-        try {
-            Connection connection = DriverManager.getConnection(CommonConstants.DB_URL,
-                    CommonConstants.DB_USERNAME, CommonConstants.DB_PASSWORD);
+        createTableIfNotExists(); // Проверяем таблицу перед выполнением запроса
 
-            PreparedStatement validateUser = connection.prepareStatement(
-                    "SELECT * FROM " + CommonConstants.DB_USERS_TABLE_NAME + " WHERE USERNAME = ? AND PASSWORD = ?"
-            );
+        String sql = "SELECT * FROM users WHERE username = ? AND password = ?";
+        try (Connection connection = DriverManager.getConnection(DB_URL);
+             PreparedStatement validateUser = connection.prepareStatement(sql)) {
+
             validateUser.setString(1, username);
             validateUser.setString(2, password);
-
             ResultSet resultSet = validateUser.executeQuery();
 
-            if (!resultSet.isBeforeFirst()) {
-                return false;
-            }
+            return resultSet.next(); // Если есть совпадение, логин верный
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return true;
+        return false;
     }
 }
