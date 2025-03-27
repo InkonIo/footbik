@@ -1,5 +1,9 @@
 package guis;
 
+import navigate.profileGUI;
+import guis.LoginFormGUI;
+
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
@@ -29,9 +33,28 @@ public class PersonalAccount extends JFrame {
         addMenuItem("Цены и трансферы", "D:\\JustFol\\footbik\\icons\\usd-circle.png");
         addMenuItem("Календарь матчей", "D:\\JustFol\\footbik\\icons\\calendar.png");
 
+
+        JButton logoutButton = new JButton("Выйти");
+        logoutButton.setForeground(Color.WHITE);
+        logoutButton.setBackground(Color.RED);
+        logoutButton.setFocusPainted(false);
+        logoutButton.setAlignmentX(Component.CENTER_ALIGNMENT);
+        logoutButton.setMaximumSize(new Dimension(200, 40));
+
+        logoutButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                dispose(); // Закрываем личный кабинет
+                new LoginFormGUI().setVisible(true); // Открываем форму логина
+            }
+        });
+
+        sidePanel.add(Box.createVerticalGlue()); // Добавляем отступ перед кнопкой
+        sidePanel.add(logoutButton);
         add(sidePanel, BorderLayout.WEST);
 
-        // Наведение на боковую панель
+        setupPanel(); // Загружаем свернутую панель
+
         sidePanel.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
@@ -39,11 +62,10 @@ public class PersonalAccount extends JFrame {
             }
         });
 
-        // Глобальный обработчик движения мыши
         addMouseMotionListener(new MouseMotionAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
-                if (expanded && e.getX() > 200) { // Если панель раскрыта и курсор ушел вправо от нее
+                if (expanded && e.getX() > 200) {
                     collapsePanel();
                 }
             }
@@ -86,16 +108,44 @@ public class PersonalAccount extends JFrame {
         sidePanel.add(buttonPanel);
     }
 
+    private void setupPanel() {
+        sidePanel.setPreferredSize(new Dimension(60, getHeight()));
+
+        for (Component comp : sidePanel.getComponents()) {
+            if (comp instanceof JPanel panel) {
+                panel.setLayout(null);
+
+                if (panel.getComponentCount() > 1) {
+                    JLabel iconLabel = (JLabel) panel.getComponent(0);
+                    JLabel textLabel = (JLabel) panel.getComponent(1);
+
+                    iconLabel.setBounds(10, 10, 40, 40);
+                    textLabel.setBounds(60, 10, 120, 40);
+                    textLabel.setVisible(false);
+                }
+            }
+        }
+
+        sidePanel.revalidate();
+        sidePanel.repaint();
+        expanded = false;
+    }
+
     private void expandPanel() {
         if (!expanded) {
             sidePanel.setPreferredSize(new Dimension(200, getHeight()));
 
             for (Component comp : sidePanel.getComponents()) {
                 if (comp instanceof JPanel panel) {
-                    for (Component child : panel.getComponents()) {
-                        if (child instanceof JLabel textLabel && !((JLabel) panel.getComponent(0)).getIcon().equals(textLabel.getIcon())) {
-                            textLabel.setVisible(true);
-                        }
+                    panel.setLayout(null);
+
+                    if (panel.getComponentCount() > 1) {
+                        JLabel iconLabel = (JLabel) panel.getComponent(0);
+                        JLabel textLabel = (JLabel) panel.getComponent(1);
+
+                        iconLabel.setBounds(10, 10, 40, 40);
+                        textLabel.setBounds(60, 10, 120, 40);
+                        textLabel.setVisible(true);
                     }
                 }
             }
@@ -112,10 +162,14 @@ public class PersonalAccount extends JFrame {
 
             for (Component comp : sidePanel.getComponents()) {
                 if (comp instanceof JPanel panel) {
-                    for (Component child : panel.getComponents()) {
-                        if (child instanceof JLabel textLabel && !((JLabel) panel.getComponent(0)).getIcon().equals(textLabel.getIcon())) {
-                            textLabel.setVisible(false);
-                        }
+                    panel.setLayout(null);
+
+                    if (panel.getComponentCount() > 1) {
+                        JLabel iconLabel = (JLabel) panel.getComponent(0);
+                        JLabel textLabel = (JLabel) panel.getComponent(1);
+
+                        iconLabel.setBounds(10, 10, 40, 40);
+                        textLabel.setVisible(false);
                     }
                 }
             }
@@ -127,7 +181,10 @@ public class PersonalAccount extends JFrame {
     }
 
     private void showContent(String section) {
-        // Здесь будет логика отображения контента
+        if (section.equals("Профиль")) {
+            dispose(); // Закрываем текущее окно
+            new profileGUI(); // Открываем профиль
+        }
     }
 
     public static void main(String[] args) {
