@@ -183,3 +183,5 @@ public class LeagueSelectionDialog extends JDialog {
         leagueLogos.put("Ligue 1 (Франция)", "https://upload.wikimedia.org/wikipedia/en/b/ba/Ligue1_UberEats_logo.svg");
     }
 }
+
+// добавить лигу картинку
