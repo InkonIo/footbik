@@ -6,6 +6,7 @@ import org.json.JSONObject;
 import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
+import java.io.File;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -19,6 +20,7 @@ public class LeagueSelectionDialog extends JDialog {
     private HashMap<String, String> leagueLogos;
     private JLabel leagueLogoLabel;
     private JLabel clubLogoLabel;
+    private HashMap<String, String> clubLogos;
 
     public LeagueSelectionDialog(JFrame parent) {
         super(parent, "Выберите лигу и клуб", true);
@@ -43,7 +45,7 @@ public class LeagueSelectionDialog extends JDialog {
 
         leagueDropdown = new JComboBox<>(leagues.keySet().toArray(new String[0]));
         styleDropdown(leagueDropdown);
-        leagueDropdown.addActionListener(e -> updateLeagueLogo());
+        leagueDropdown.addActionListener(e -> updateLeagueAndClub());
 
         gbc.gridx = 0;
         gbc.gridy = 0;
@@ -55,8 +57,9 @@ public class LeagueSelectionDialog extends JDialog {
         clubLogoLabel = new JLabel();
         clubLogoLabel.setPreferredSize(new Dimension(100, 100));
 
-        clubDropdown = new JComboBox<>(new String[]{"Выберите лигу"});
+        clubDropdown = new JComboBox<>();
         styleDropdown(clubDropdown);
+        updateClubDropdown("Выберите лигу"); // Устанавливаем placeholder
         clubDropdown.addActionListener(e -> updateClubLogo());
 
         gbc.gridx = 0;
@@ -72,7 +75,7 @@ public class LeagueSelectionDialog extends JDialog {
             String selectedLeague = (String) leagueDropdown.getSelectedItem();
             String selectedClub = (String) clubDropdown.getSelectedItem();
 
-            if (selectedClub != null && !selectedClub.equals("Выберите лигу")) {
+            if (selectedClub != null && !selectedClub.equals("Выберите клуб")) {
                 dispose();
                 new profileGUI(selectedLeague, selectedClub);
             } else {
@@ -81,40 +84,80 @@ public class LeagueSelectionDialog extends JDialog {
         });
 
         JPanel bottomPanel = new JPanel();
-        bottomPanel.setBackground(Color.WHITE);
+        bottomPanel.setBackground(Color.GRAY);
         bottomPanel.add(confirmButton);
 
         add(topPanel, BorderLayout.CENTER);
         add(bottomPanel, BorderLayout.SOUTH);
 
-        updateLeagueLogo();
+        updateLeagueAndClub();
         setVisible(true);
     }
 
-    private void updateLeagueLogo() {
+    private void updateLeagueAndClub() {
         String selectedLeague = (String) leagueDropdown.getSelectedItem();
-        clubDropdown.setModel(new DefaultComboBoxModel<>(leagues.get(selectedLeague)));
+        updateClubDropdown(selectedLeague);
 
         String logoURL = leagueLogos.get(selectedLeague);
         if (logoURL != null) {
-            leagueLogoLabel.setIcon(loadImageFromURL(logoURL, 100, 100));
+            leagueLogoLabel.setIcon(loadImageFromURL(logoURL));
+        }
+
+        // Выбираем первый клуб по умолчанию
+        if (clubDropdown.getItemCount() > 1) {
+            clubDropdown.setSelectedIndex(1);
+            updateClubLogo();
+        }
+    }
+
+    private void updateClubDropdown(String league) {
+        clubDropdown.removeAllItems();
+        clubDropdown.addItem("Выберите клуб");
+
+        if (leagues.containsKey(league)) {
+            for (String club : leagues.get(league)) {
+                clubDropdown.addItem(club);
+            }
         }
     }
 
     private void updateClubLogo() {
         String selectedClub = (String) clubDropdown.getSelectedItem();
-        if (selectedClub != null && !selectedClub.equals("Выберите лигу")) {
-            String logoURL = fetchClubLogoURL(selectedClub);
-            clubLogoLabel.setIcon(logoURL != null ? loadImageFromURL(logoURL, 100, 100) : null);
+        if (selectedClub != null && !selectedClub.equals("Выберите клуб")) {
+            // Проверяем, есть ли локальный логотип
+            if (clubLogos.containsKey(selectedClub)) {
+                clubLogoLabel.setIcon(loadImageFromURL(clubLogos.get(selectedClub)));
+            } else {
+                String logoURL = fetchClubLogoURL(selectedClub);
+                if (logoURL != null && !logoURL.isEmpty()) {
+                    clubLogoLabel.setIcon(loadImageFromURL(logoURL));
+                } else {
+                    System.err.println("Ошибка: логотип не найден для клуба " + selectedClub);
+                    clubLogoLabel.setIcon(null);
+                }
+            }
+        } else {
+            clubLogoLabel.setIcon(null);
         }
     }
 
     private String fetchClubLogoURL(String clubName) {
+        if (clubName == null || clubName.trim().isEmpty()) {
+            System.err.println("Ошибка: название клуба не задано.");
+            return null;
+        }
+
         String apiUrl = "https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=" + clubName.replace(" ", "%20");
         try {
             HttpURLConnection conn = (HttpURLConnection) new URL(apiUrl).openConnection();
             conn.setRequestMethod("GET");
             conn.setRequestProperty("Accept", "application/json");
+
+            int responseCode = conn.getResponseCode();
+            if (responseCode != 200) {
+                System.err.println("Ошибка: API вернуло код " + responseCode);
+                return null;
+            }
 
             Scanner scanner = new Scanner(conn.getInputStream());
             StringBuilder jsonResponse = new StringBuilder();
@@ -127,21 +170,50 @@ public class LeagueSelectionDialog extends JDialog {
             JSONObject jsonObject = new JSONObject(jsonResponse.toString());
             JSONArray teams = jsonObject.optJSONArray("teams");
 
-            return (teams != null && teams.length() > 0) ? teams.getJSONObject(0).optString("strBadge", null) : null;
+            if (teams == null || teams.length() == 0) {
+                System.err.println("Ошибка: команда '" + clubName + "' не найдена в API.");
+                return null;
+            }
+
+            String logoURL = teams.getJSONObject(0).optString("strBadge", null);
+            if (logoURL == null || logoURL.isEmpty()) {
+                System.err.println("Ошибка: логотип для команды '" + clubName + "' не найден.");
+            }
+
+            return logoURL;
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println("Ошибка при запросе к API: " + e.getMessage());
             return null;
         }
     }
 
-    private ImageIcon loadImageFromURL(String url, int width, int height) {
-        try {
-            Image image = ImageIO.read(new URL(url));
-            return image != null ? new ImageIcon(image.getScaledInstance(width, height, Image.SCALE_SMOOTH)) : null;
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
+
+    private ImageIcon loadImageFromURL(String path) {
+        if (path == null || path.isEmpty()) {
+            System.err.println("Ошибка: path равно null или пусто.");
+            return new ImageIcon(); // Возвращаем пустую иконку
         }
+
+        try {
+            if (path.startsWith("http")) {
+                URL url = new URL(path);
+                Image img = ImageIO.read(url);
+                Image scaledImg = img.getScaledInstance(100, 100, Image.SCALE_SMOOTH);
+                return new ImageIcon(scaledImg);
+            } else {
+                File file = new File(path);
+                if (file.exists()) {
+                    Image img = ImageIO.read(file);
+                    Image scaledImg = img.getScaledInstance(100, 100, Image.SCALE_SMOOTH);
+                    return new ImageIcon(scaledImg);
+                } else {
+                    System.err.println("Файл не найден: " + path);
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Ошибка загрузки изображения: " + e.getMessage());
+        }
+        return new ImageIcon();
     }
 
     private void styleDropdown(JComboBox<String> dropdown) {
@@ -176,12 +248,14 @@ public class LeagueSelectionDialog extends JDialog {
         leagues.put("Serie A (Италия)", new String[]{"Juventus", "Inter Milan", "AC Milan"});
         leagues.put("Ligue 1 (Франция)", new String[]{"PSG", "Marseille", "Lyon"});
 
-        leagueLogos.put("Premier League (Англия)", "https://upload.wikimedia.org/wikipedia/en/f/f2/Premier_League_Logo.svg");
-        leagueLogos.put("La Liga (Испания)", "https://upload.wikimedia.org/wikipedia/en/2/2e/LaLiga_logo_%282023%29.svg");
-        leagueLogos.put("Bundesliga (Германия)", "https://upload.wikimedia.org/wikipedia/en/d/df/Bundesliga_logo_%282017%29.svg");
-        leagueLogos.put("Serie A (Италия)", "https://upload.wikimedia.org/wikipedia/en/e/eb/Serie_A_logo_%282019%29.svg");
-        leagueLogos.put("Ligue 1 (Франция)", "https://upload.wikimedia.org/wikipedia/en/b/ba/Ligue1_UberEats_logo.svg");
+        leagueLogos.put("Premier League (Англия)", "/Users/inkonio/Desktop/Utilities/footbik-master/ImagesAll/League/Epl.png");
+        leagueLogos.put("La Liga (Испания)", "/Users/inkonio/Desktop/Utilities/footbik-master/ImagesAll/League/laliga.png");
+        leagueLogos.put("Bundesliga (Германия)", "/Users/inkonio/Desktop/Utilities/footbik-master/ImagesAll/League/bundesliga.png");
+        leagueLogos.put("Serie A (Италия)", "/Users/inkonio/Desktop/Utilities/footbik-master/ImagesAll/League/serieA.png");
+        leagueLogos.put("Ligue 1 (Франция)", "/Users/inkonio/Desktop/Utilities/footbik-master/ImagesAll/League/ligueOne.png");
+
+        // Добавляем логотип только для PSG
+        clubLogos = new HashMap<>();
+        clubLogos.put("PSG", "/Users/inkonio/Desktop/Utilities/footbik-master/ImagesAll/clubs/psg.png");
     }
 }
-
-// добавить лигу картинку
